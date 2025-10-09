@@ -137,6 +137,60 @@ test_digit_label = torch.load(f"{base_dir}/test_digit_label.pt")
 test_color_label = torch.load(f"{base_dir}/test_color_label.pt")
 ```
 
+### MIMIC-CXR Benchmark
+
+**Step 1: Download MIMIC-CXR dataset**
+You need to download the MIMIC-CXR dataset from PhysioNet:
+- **Dataset**: [MIMIC-CXR Database v2.0.0](https://physionet.org/content/mimic-cxr/2.0.0/)
+- **Requirements**: You need to complete CITI training and get approval for access
+- **Files needed**:
+  - `mimic-cxr-2.0.0-chexpert.csv.gz` (labels file)
+  - `files/` directory containing all chest X-ray images
+
+**Step 2: Organize your data directory**
+Create the following structure:
+```
+/path/to/mimic-cxr/
+├── mimic-cxr-2.0.0-chexpert.csv.gz    # Patient labels and metadata
+└── files/
+    └── p10/
+    └── p11/
+    └── p12/
+    └── ...                            # Patient directories with .jpg images
+```
+
+**Step 3: Run experiments with gender shortcuts**
+```bash
+cd MIMIC-CXR
+python mimic-cxr.py \
+    --root_dir /path/to/mimic-cxr \
+    --patients_csv /path/to/mimic-cxr/mimic-cxr-2.0.0-chexpert.csv.gz \
+    --task Edema \
+    --p_male_pos_train 0.8 \
+    --p_male_neg_train 0.2 \
+    --p_male_pos_test 0.2 \
+    --p_male_neg_test 0.8 \
+    --grad_methods naive,fix_a_step,fix_a_step_soft,gradient_surgery \
+    --epochs 20 \
+    --seeds 5
+```
+
+**Available arguments:**
+- `--root_dir`: Path to MIMIC-CXR dataset directory
+- `--patients_csv`: Path to the chexpert labels CSV file
+- `--task`: Target pathology (default: "Edema")
+- `--p_male_pos_train/test`: P(Male | Positive) for train/test sets
+- `--p_male_neg_train/test`: P(Male | Negative) for train/test sets  
+- `--grad_methods`: Comma-separated list of methods to run
+- `--epochs`: Number of training epochs
+- `--seeds`: Number of random seeds to run
+- `--unlabeled_pct`: Fraction of training data that is unlabeled (default: 0.90)
+- `--lambda_list`: Semi-supervised loss weights to try (default: "2.0")
+- `--batch_size`: Training batch size (default: 16)
+- `--out_dir`: Output directory for results (default: "runs/exp")
+
+This will create gender-based shortcuts where male/female correlates with the target pathology in training but anti-correlates in test, allowing evaluation of shortcut mitigation methods.
+
 ### Minimal Reproduction
 
 For quick verification, run the demo scripts:
