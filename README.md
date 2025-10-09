@@ -60,10 +60,10 @@ Fix-A-Shortcut/
 
 | Method | Description | Key Idea |
 |--------|-------------|----------|
-| **FAS** | Fix-A-Step | Hard conflict detection and gradient masking |
-| **FAS-soft** | Fix-A-Soft | Soft cosine-based gradient weighting |
-| **FAS-GS** | Fix-A-Gradient Surgery | Gradient surgery for alignment |
-| **Naive** | Baseline | Standard semi-supervised learning |
+| **FAS** | Fix-A-Shortcut | Hard conflict detection and gradient masking |
+| **FAS-soft** | Fix-A-Shortcut-Soft | Soft cosine-based gradient weighting |
+| **FAS-GS-Align** | Fix-A-Shortcut Gradient Surgery Aligned | Projection based variant for alignment |
+| **Vanilla-SSL** | Baseline | Standard semi-supervised learning |
 
 ## Usage
 
