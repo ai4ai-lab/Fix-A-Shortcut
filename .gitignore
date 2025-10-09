@@ -1,0 +1,44 @@
+# 1) data dirs only
+/data/
+
+# 2) but keep your code
+!/colored_mnist/*.py
+!/**/*.py
+
+# PBS, logs, venvs, caches, misc
+*.pbs
+*.o
+*.e*
+*.log
+
+.venv/
+env/
+venv/
+
+__pycache__/
+*.py[cod]
+*$py.class
+*.csv
+*.gz
+*.pt
+*.swp
+.DS_Store
+*.png 
+*wandb/
+/MIMIC-CXR/physionet.org/files
+*.csv
+IMAGE_FILENAMES
+
+# MIMIC-CXR artifacts
+
+
+
+MIMIC-CXR/**/cache/
+MIMIC-CXR/wget-log
+
+# large binaries (if you never want them in git)
+*.pth
+*.pt
+*.npz
+*.gz
+
