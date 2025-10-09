@@ -1,5 +1,19 @@
+# Core ML/Scientific Computing
 torch>=1.9.0
+torchvision>=0.10.0
 numpy>=1.20.0
-matplotlib>=3.3.0
+scipy>=1.7.0
+
+# Data Handling & Metrics
+pandas>=1.3.0
 scikit-learn>=1.0.0
+
+# Visualization (optional - for plotting/analysis)
+matplotlib>=3.3.0
 seaborn>=0.11.0
+
+# Progress Bars & Utilities
+tqdm>=4.60.0
+
+# Optional: For YAML configs (if keeping config files)
+# PyYAML>=5.4.0
