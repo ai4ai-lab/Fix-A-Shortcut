@@ -26,7 +26,7 @@ Semi-supervised learning (SSL) methods often suffer from **shortcut learning**, 
 
 ### Setup
 ```bash
-git clone https://github.com/ai4ai-lab/Fix-A-Shortcut.git
+git clone [link to repo]
 cd Fix-A-Shortcut
 pip install -r requirements.txt
 ```
@@ -236,11 +236,7 @@ If you use this code in your research, please cite:
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Contact
-
-For questions or issues, please:
-1. Check existing [Issues](https://github.com/ai4ai-lab/Fix-A-Shortcut/issues)
-2. Open a new issue with detailed description
-3. Contact: [contact-email]
+To be released
 
 ---
 
