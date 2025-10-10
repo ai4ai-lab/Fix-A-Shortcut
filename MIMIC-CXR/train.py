@@ -1,6 +1,5 @@
 #!/usr/bin/env python
-# train.py  — robust trainer with correct TE measurement, optional shortcut regularization,
-#             and original progress-bar messages restored.
+# train.py  — robust trainer 
 
 import os
 import math
