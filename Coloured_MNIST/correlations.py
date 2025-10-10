@@ -3,8 +3,7 @@
 Self-correlation plots for embedding analysis.
 
 Outputs
-    • Self-correlation heat-maps for the *naïve* embeddings (train & test)
-    • All artefacts/images are logged to W&B and the run is closed cleanly
+    • Self-correlation heat-maps for the *Vanilla* embeddings (train & test)
 """
 
 import os
