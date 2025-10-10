@@ -227,7 +227,6 @@ If you use this code in your research, please cite:
   author={[Authors]},
   journal={[Conference/Journal]},
   year={2024},
-  url={https://github.com/ai4ai-lab/Fix-A-Shortcut}
 }
 ```
 
