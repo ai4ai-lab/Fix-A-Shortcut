@@ -12,7 +12,7 @@ import torch.optim as optim
 
 
 #####################################
-# utils.py  —  fix for device mismatch
+# utils.py  
 #####################################
 import torch
 
