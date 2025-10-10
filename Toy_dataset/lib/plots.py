@@ -527,6 +527,4 @@ def plot_shortcut_norm_vs_delta_u(
     ax.grid(True)
     return ax
 
-# plot test mse over epochs:
-# contour plots
-# contour plots with regularisation
+
