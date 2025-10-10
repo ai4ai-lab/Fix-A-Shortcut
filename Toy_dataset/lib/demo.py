@@ -3,8 +3,7 @@
 demo.py - Minimal demonstration of Fix-A-Shortcut methods
 
 This script runs a streamlined version of the synthetic experiments,
-showing the core functionality and generating essential plots for 
-conference submission reproducibility.
+showing the core functionality 
 """
 
 import torch
