@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# experiment.py  – run SSL + GT + collect stats
+# experiment.py  –
 # -----------------------------------------------------
 
 import torch
