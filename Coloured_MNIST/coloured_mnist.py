@@ -413,20 +413,3 @@ if __name__ == "__main__":
             print("→ final model & history saved to", run_dir)
             # also test?
 
-# TO DO:
-# ssl helps with shortcuts?->trade off between accuracy and shortcut mitigation : proportion of labeled data is low->gradient methods balance that trade off better?
-# # Check correlations at train and test
-# # fix concept error
-# See if labeled-fraction =1.0 how correlations maps look
-
-
-
-
-# Methods: Use known concepts ->for labeled data
-# Embeddings->supervised learning (complete set of embeddings) : DONE
-# Sanity print out metrics in train /test
-# Two channels in prediction process->Labeled->known concepts, Unlabeled->C,U,S: DONE
-# file restructure->clean up/delete files for a clean pull : DONE
-# Think of all plots needed+make scripts for these:
-# Supervised learning baseline (compare)
-# set up weights and biases in plot script
