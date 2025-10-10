@@ -3,7 +3,6 @@
 # ---------------------------------------------------------------------------
 # • Heavy steps (biasing, pre-training, embedding extraction) are cached.
 # • Add --fresh to ignore caches.
-# • NEW: --balance_labels   → matches the update in data.py so you can easily
 #   create datasets whose class prior P(y=1)=0.5 before injecting the shortcut.
 # ---------------------------------------------------------------------------
 
