@@ -1,5 +1,5 @@
 
-# coloured_mnist.py
+# positioned_mnist.py
 
 from utils import generate_concepts_batched
 from lib.models import ConvNet, linear_classifier
@@ -9,6 +9,7 @@ import sys
 import argparse
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import numpy as np
 import torchvision
 from torchvision import datasets
@@ -18,42 +19,53 @@ from lib.models import ResNetUnknown
 sys.path.append("..")
 
 
-# color_grayscale_arr, assign_color_label
+# position_digit, assign_position_label
 
 
-def color_grayscale_arr(arr, red=True):
-    h, w = arr.shape
-    arr = arr.view(h, w, 1)
-    if red:
-        arr = torch.cat([arr, torch.zeros((h, w, 2), dtype=arr.dtype)], dim=2)
+def position_digit(arr, top_left=True):
+    """
+    Resize a 28x28 digit to 14x14 and place it in a 28x28 canvas:
+      top_left=True  -> top-left  corner  (position = 1)
+      top_left=False -> bottom-right corner (position = 0)
+    Returns a [28, 28, 3] tensor (grayscale replicated to 3 channels, 0-255 range).
+    """
+    h, w = arr.shape  # 28, 28
+    # resize to 14x14
+    small = F.interpolate(
+        arr.float().unsqueeze(0).unsqueeze(0),
+        size=(14, 14),
+        mode='bilinear',
+        align_corners=False
+    ).squeeze()
+    canvas = torch.zeros((28, 28), dtype=torch.float32)
+    if top_left:
+        canvas[0:14, 0:14] = small
     else:
-        arr = torch.cat([
-            torch.zeros((h, w, 1), dtype=arr.dtype),
-            arr,
-            torch.zeros((h, w, 1), dtype=arr.dtype)
-        ], dim=2)
-    return arr
+        canvas[14:28, 14:28] = small
+    # replicate to 3 channels: [28, 28, 3]
+    canvas_3ch = canvas.unsqueeze(-1).expand(28, 28, 3).contiguous()
+    return canvas_3ch
 
 
-def assign_color_label(data, color_label):
+def assign_position_label(data, position_label):
     out_list = []
     for i in range(len(data)):
-        c = color_label[i].item()
-        colored = color_grayscale_arr(data[i], red=bool(c))
-        colored = colored / 255.0
-        out_list.append(colored.unsqueeze(0))  # => [1,28,28,3]
+        p = position_label[i].item()
+        positioned = position_digit(data[i], top_left=bool(p))
+        positioned = positioned / 255.0
+        out_list.append(positioned.unsqueeze(0))  # => [1,28,28,3]
 
     out = torch.cat(out_list, dim=0)  # => [N,28,28,3]
     return out.permute(0, 3, 1, 2)    # => [N,3,28,28]
 
-# ColoredMnist
+# PositionedMnist
 
 
-class ColoredMnist:
+class PositionedMnist:
 
     def __init__(self, random_state=42):
         self.dataset = datasets.MNIST(
-            "./colored_mnist", train=False, download=True)
+            "./positioned_mnist", train=False, download=True)
         self.rng = np.random.RandomState(random_state)
 
     def get_train_test_idx(self, shortcut_ratio=1.0):
@@ -65,121 +77,121 @@ class ColoredMnist:
         self.train_idx = idx_all[:half]
         self.test_idx = idx_all[half:]
 
-        # digit≥5 => 1, else 0
+        # digit>=5 => 1, else 0
         all_digit = (label >= 5).float()
         self.train_digit = all_digit[self.train_idx]
         self.test_digit = all_digit[self.test_idx]
 
         train_size = len(self.train_idx)
         corr_count = int(train_size * shortcut_ratio)
-        # first 'corr_count' match digit -> color
-        color_corr = self.train_digit[:corr_count]
+        # first 'corr_count' match digit -> position
+        position_corr = self.train_digit[:corr_count]
         # rest random
-        color_rand = torch.from_numpy(self.rng.binomial(
+        position_rand = torch.from_numpy(self.rng.binomial(
             1, 0.5, train_size - corr_count)).float()
-        self.train_color = torch.cat([color_corr, color_rand], dim=0)
+        self.train_position = torch.cat([position_corr, position_rand], dim=0)
         # shuffle them
         perm2 = self.rng.permutation(train_size)
-        self.train_color = self.train_color[perm2]
+        self.train_position = self.train_position[perm2]
 
-        # test -> reversed
+        # test -> reversed (anti-correlated)
         label_test_orig = label[self.test_idx]
-        self.test_color = (label_test_orig < 5).float()
+        self.test_position = (label_test_orig < 5).float()
 
         self.train_data = data[self.train_idx]
         self.test_data = data[self.test_idx]
 
     def assign_shortcuts(self):
-        train_colored = assign_color_label(self.train_data, self.train_color)
-        test_colored = assign_color_label(self.test_data,  self.test_color)
+        train_positioned = assign_position_label(self.train_data, self.train_position)
+        test_positioned = assign_position_label(self.test_data,  self.test_position)
 
         return (
-            train_colored, self.train_digit, self.train_color,
-            test_colored,  self.test_digit,  self.test_color
+            train_positioned, self.train_digit, self.train_position,
+            test_positioned,  self.test_digit,  self.test_position
         )
-     # generate unbiased training data for concepts
 
+    # generate unbiased training data for concepts
     def generate_unbiased_data(self):
 
-        self.unbiased_color_label = self.rng.binomial(
+        self.unbiased_position_label = self.rng.binomial(
             1, 0.5, self.train_data.shape[0])
-        self.unbiased_color_label = torch.from_numpy(
-            self.unbiased_color_label).float()
-        # call assign_color_label with only two arguments
-        self.unbiased_train_data = assign_color_label(
-            self.train_data, self.unbiased_color_label)
-        return self.unbiased_train_data, self.unbiased_color_label
+        self.unbiased_position_label = torch.from_numpy(
+            self.unbiased_position_label).float()
+        # call assign_position_label with only two arguments
+        self.unbiased_train_data = assign_position_label(
+            self.train_data, self.unbiased_position_label)
+        return self.unbiased_train_data, self.unbiased_position_label
 
     def build_or_load_data(path, base_seed):
         os.makedirs(path, exist_ok=True)
         req = [
-            "train_data.pt", "train_digit_label.pt", "train_color_label.pt",
-            "test_data.pt", "test_digit_label.pt", "test_color_label.pt",
-            "unbiased_train_data.pt", "unbiased_color_label.pt"
+            "train_data.pt", "train_digit_label.pt", "train_position_label.pt",
+            "test_data.pt", "test_digit_label.pt", "test_position_label.pt",
+            "unbiased_train_data.pt", "unbiased_position_label.pt"
         ]
         if not all(os.path.exists(os.path.join(path, f)) for f in req):
-            print("▶ Generating Colored MNIST data")
-            cm = ColoredMnist(random_state=base_seed)
-            cm.get_train_test_idx(shortcut_ratio=args.shortcut_ratio)
-            ub_x, ub_y = cm.generate_unbiased_data()
-            x_tr, y_tr_d,   y_tr_c,  x_te, y_te_d, y_te_c = cm.assign_shortcuts()
+            print("▶ Generating Positioned MNIST data")
+            pm = PositionedMnist(random_state=base_seed)
+            pm.get_train_test_idx(shortcut_ratio=args.shortcut_ratio)
+            ub_x, ub_y = pm.generate_unbiased_data()
+            x_tr, y_tr_d, y_tr_p, x_te, y_te_d, y_te_p = pm.assign_shortcuts()
             torch.save(x_tr, os.path.join(path, "train_data.pt"))
             torch.save(y_tr_d, os.path.join(path, "train_digit_label.pt"))
-            torch.save(y_tr_c, os.path.join(path, "train_color_label.pt"))
+            torch.save(y_tr_p, os.path.join(path, "train_position_label.pt"))
             torch.save(x_te, os.path.join(path, "test_data.pt"))
             torch.save(y_te_d, os.path.join(path, "test_digit_label.pt"))
-            torch.save(y_te_c, os.path.join(path, "test_color_label.pt"))
+            torch.save(y_te_p, os.path.join(path, "test_position_label.pt"))
             torch.save(ub_x, os.path.join(path, "unbiased_train_data.pt"))
-            torch.save(ub_y, os.path.join(path, "unbiased_color_label.pt"))
+            torch.save(ub_y, os.path.join(path, "unbiased_position_label.pt"))
             print("✔ Data saved.")
         else:
             print("▶ Loading existing data")
         # return loaded tensors
         tr_x = torch.load(os.path.join(path, "train_data.pt"))
         tr_d = torch.load(os.path.join(path, "train_digit_label.pt"))
-        tr_c = torch.load(os.path.join(path, "train_color_label.pt"))
+        tr_p = torch.load(os.path.join(path, "train_position_label.pt"))
         te_x = torch.load(os.path.join(path, "test_data.pt"))
         te_d = torch.load(os.path.join(path, "test_digit_label.pt"))
-        te_c = torch.load(os.path.join(path, "test_color_label.pt"))
+        te_p = torch.load(os.path.join(path, "test_position_label.pt"))
         ub_x = torch.load(os.path.join(path, "unbiased_train_data.pt"))
-        ub_y = torch.load(os.path.join(path, "unbiased_color_label.pt"))
-        return tr_x, tr_d, tr_c, te_x, te_d, te_c, ub_x, ub_y
+        ub_y = torch.load(os.path.join(path, "unbiased_position_label.pt"))
+        return tr_x, tr_d, tr_p, te_x, te_d, te_p, ub_x, ub_y
 
 
 def build_or_load_data(path, base_seed):
     os.makedirs(path, exist_ok=True)
     req = [
-        "train_data.pt", "train_digit_label.pt", "train_color_label.pt",
-        "test_data.pt", "test_digit_label.pt", "test_color_label.pt",
-        "unbiased_train_data.pt", "unbiased_color_label.pt"
+        "train_data.pt", "train_digit_label.pt", "train_position_label.pt",
+        "test_data.pt", "test_digit_label.pt", "test_position_label.pt",
+        "unbiased_train_data.pt", "unbiased_position_label.pt"
     ]
     if not all(os.path.exists(os.path.join(path, f)) for f in req):
-        print("▶ Generating Colored MNIST data")
-        cm = ColoredMnist(random_state=base_seed)
-        cm.get_train_test_idx(shortcut_ratio=args.shortcut_ratio)
-        ub_x, ub_y = cm.generate_unbiased_data()
-        x_tr, y_tr_d,   y_tr_c,  x_te, y_te_d, y_te_c = cm.assign_shortcuts()
+        print("▶ Generating Positioned MNIST data")
+        pm = PositionedMnist(random_state=base_seed)
+        pm.get_train_test_idx(shortcut_ratio=args.shortcut_ratio)
+        ub_x, ub_y = pm.generate_unbiased_data()
+        x_tr, y_tr_d, y_tr_p, x_te, y_te_d, y_te_p = pm.assign_shortcuts()
         torch.save(x_tr, os.path.join(path, "train_data.pt"))
         torch.save(y_tr_d, os.path.join(path, "train_digit_label.pt"))
-        torch.save(y_tr_c, os.path.join(path, "train_color_label.pt"))
+        torch.save(y_tr_p, os.path.join(path, "train_position_label.pt"))
         torch.save(x_te, os.path.join(path, "test_data.pt"))
         torch.save(y_te_d, os.path.join(path, "test_digit_label.pt"))
-        torch.save(y_te_c, os.path.join(path, "test_color_label.pt"))
+        torch.save(y_te_p, os.path.join(path, "test_position_label.pt"))
         torch.save(ub_x, os.path.join(path, "unbiased_train_data.pt"))
-        torch.save(ub_y, os.path.join(path, "unbiased_color_label.pt"))
+        torch.save(ub_y, os.path.join(path, "unbiased_position_label.pt"))
         print("✔ Data saved.")
     else:
         print("▶ Loading existing data")
     # return loaded tensors
     tr_x = torch.load(os.path.join(path, "train_data.pt"))
     tr_d = torch.load(os.path.join(path, "train_digit_label.pt"))
-    tr_c = torch.load(os.path.join(path, "train_color_label.pt"))
+    tr_p = torch.load(os.path.join(path, "train_position_label.pt"))
     te_x = torch.load(os.path.join(path, "test_data.pt"))
     te_d = torch.load(os.path.join(path, "test_digit_label.pt"))
-    te_c = torch.load(os.path.join(path, "test_color_label.pt"))
+    te_p = torch.load(os.path.join(path, "test_position_label.pt"))
     ub_x = torch.load(os.path.join(path, "unbiased_train_data.pt"))
-    ub_y = torch.load(os.path.join(path, "unbiased_color_label.pt"))
-    return tr_x, tr_d, tr_c, te_x, te_d, te_c, ub_x, ub_y
+    ub_y = torch.load(os.path.join(path, "unbiased_position_label.pt"))
+    return tr_x, tr_d, tr_p, te_x, te_d, te_p, ub_x, ub_y
 
 
 if __name__ == "__main__":
@@ -190,11 +202,11 @@ if __name__ == "__main__":
     import torch.nn as nn
     from lib.models import ConvNet, ResNetUnknown, linear_classifier
     from lib.train import Trainer
-    from coloured_mnist import ColoredMnist, generate_concepts_batched
+    from positioned_mnist import PositionedMnist, generate_concepts_batched
 
     # ---------- ARGS ----------
     parser = argparse.ArgumentParser(
-        description="Colored MNIST + Shortcut/Concept Models"
+        description="Positioned MNIST + Shortcut/Concept Models"
     )
     parser.add_argument("--shortcut_ratio", type=float, default=1.0)
     parser.add_argument("--lambda_unlab",   type=float, default=0.0)
@@ -207,7 +219,7 @@ if __name__ == "__main__":
     parser.add_argument("--device",         type=str,   default="cpu")
     parser.add_argument(
         "--methods", nargs="+",
-        default=["fix_a_step_soft","fix_a_step", "gradient_surgery","naive"]
+        default=["fix_a_step_soft", "fix_a_step", "gradient_surgery", "naive"]
     )
     parser.add_argument("--epochs",   type=int,   default=5)
     parser.add_argument("--n_runs",   type=int,   default=20,
@@ -218,27 +230,27 @@ if __name__ == "__main__":
 
     # ---------- SETUP PATHS ----------
     exp_name = f"λ{args.lambda_unlab:g}_sr{args.shortcut_ratio:g}_lf{args.label_frac:g}"
-    base_dir = os.path.join("data", "colored_mnist", exp_name)
+    base_dir = os.path.join("data", "positioned_mnist", exp_name)
     os.makedirs(base_dir, exist_ok=True)
 
     # 0) Build or load the shared data
     def build_or_load_data(path, seed):
-        cm = ColoredMnist(random_state=seed)
-        cm.get_train_test_idx(shortcut_ratio=args.shortcut_ratio)
-        ub_x, ub_y = cm.generate_unbiased_data()
-        x_tr, y_tr_d, y_tr_c, x_te, y_te_d, y_te_c = cm.assign_shortcuts()
+        pm = PositionedMnist(random_state=seed)
+        pm.get_train_test_idx(shortcut_ratio=args.shortcut_ratio)
+        ub_x, ub_y = pm.generate_unbiased_data()
+        x_tr, y_tr_d, y_tr_p, x_te, y_te_d, y_te_p = pm.assign_shortcuts()
         torch.save(x_tr, os.path.join(path, "train_data.pt"))
         torch.save(y_tr_d, os.path.join(path, "train_digit_label.pt"))
-        torch.save(y_tr_c, os.path.join(path, "train_color_label.pt"))
+        torch.save(y_tr_p, os.path.join(path, "train_position_label.pt"))
         torch.save(x_te, os.path.join(path, "test_data.pt"))
         torch.save(y_te_d, os.path.join(path, "test_digit_label.pt"))
-        torch.save(y_te_c, os.path.join(path, "test_color_label.pt"))
+        torch.save(y_te_p, os.path.join(path, "test_position_label.pt"))
         torch.save(ub_x,  os.path.join(path, "unbiased_train_data.pt"))
-        torch.save(ub_y,  os.path.join(path, "unbiased_color_label.pt"))
+        torch.save(ub_y,  os.path.join(path, "unbiased_position_label.pt"))
 
-    required = ["train_data.pt", "train_digit_label.pt", "train_color_label.pt",
-                "test_data.pt", "test_digit_label.pt", "test_color_label.pt",
-                "unbiased_train_data.pt", "unbiased_color_label.pt"]
+    required = ["train_data.pt", "train_digit_label.pt", "train_position_label.pt",
+                "test_data.pt", "test_digit_label.pt", "test_position_label.pt",
+                "unbiased_train_data.pt", "unbiased_position_label.pt"]
     if not all(os.path.exists(os.path.join(base_dir, f)) for f in required):
         print("▶ Generating data for experiment", exp_name)
         build_or_load_data(base_dir, args.random_state)
@@ -249,21 +261,21 @@ if __name__ == "__main__":
     train_data = torch.load(os.path.join(base_dir, "train_data.pt"))
     train_digit_label = torch.load(
         os.path.join(base_dir, "train_digit_label.pt"))
-    train_color_label = torch.load(
-        os.path.join(base_dir, "train_color_label.pt"))
+    train_position_label = torch.load(
+        os.path.join(base_dir, "train_position_label.pt"))
     test_data = torch.load(os.path.join(base_dir, "test_data.pt"))
     test_digit_label = torch.load(
         os.path.join(base_dir, "test_digit_label.pt"))
-    test_color_label = torch.load(
-        os.path.join(base_dir, "test_color_label.pt"))
+    test_position_label = torch.load(
+        os.path.join(base_dir, "test_position_label.pt"))
     unbiased_train_data = torch.load(
         os.path.join(base_dir, "unbiased_train_data.pt"))
-    unbiased_color_label = torch.load(
-        os.path.join(base_dir, "unbiased_color_label.pt"))
+    unbiased_position_label = torch.load(
+        os.path.join(base_dir, "unbiased_position_label.pt"))
 
     loss_fn = nn.BCEWithLogitsLoss()
     N = train_data.shape[0]
-    n_lab = int(args.label_frac * N)          # 10% labeled
+    n_lab = int(args.label_frac * N)          # labeled portion
     perm_all = np.arange(N)
 
     # ---------- PER-METHOD LOOP ----------
@@ -284,22 +296,22 @@ if __name__ == "__main__":
             run_dir = os.path.join(method_dir, run_tag)
             os.makedirs(run_dir, exist_ok=True)
 
-            # 1) train the shortcut model on color
+            # 1) train the shortcut model on position
             shortcut_model = ConvNet().to(device)
 
             shortcut_trainer = Trainer(
                 model=shortcut_model,
                 device=device,
                 train_data=unbiased_train_data,
-                train_label=unbiased_color_label,    # color = shortcut signal
+                train_label=unbiased_position_label,    # position = shortcut signal
                 test_data=test_data,
-                test_label=test_color_label,
+                test_label=test_position_label,
                 train_loss_fn=loss_fn,
                 test_loss_fn=loss_fn,
                 unlab_data=None,      # no unlabeled loss
                 lambda_unlab=0.0,     # zero weight on any unlabeled term
                 num_epochs=args.epochs,
-                grad_method="naive"   # single‐pass, fully supervised
+                grad_method="naive"   # single-pass, fully supervised
             )
             # reset histories
             for attr in ("train_loss", "test_loss", "train_auc", "test_auc",
@@ -312,7 +324,7 @@ if __name__ == "__main__":
             np.random.shuffle(perm_all)
             lab_idx, unl_idx = perm_all[:n_lab], perm_all[n_lab:]
             semi_digit = train_digit_label.clone()
-            semi_digit[unl_idx] = -1.0 
+            semi_digit[unl_idx] = -1.0
 
             concept_model = ConvNet().to(device)
             concept_trainer = Trainer(
@@ -324,13 +336,13 @@ if __name__ == "__main__":
                 test_label=test_digit_label,
                 train_loss_fn=loss_fn,
                 test_loss_fn=loss_fn,
-                # don’t pass unlab_data
+                # don't pass unlab_data
                 unlab_data=None,
-                # zero out the unlabeled‐loss weight
+                # zero out the unlabeled-loss weight
                 lambda_unlab=0.0,
                 optimizer_params={"lr": 1e-3, "weight_decay": 1e-4},
                 num_epochs=args.epochs,
-                # force naive two‐pass (really single‐pass) supervised gradient
+                # force naive two-pass (really single-pass) supervised gradient
                 grad_method="naive"
             )
             for attr in ("train_loss", "test_loss", "train_auc", "test_auc",
@@ -368,11 +380,8 @@ if __name__ == "__main__":
                 run_dir, "test_last_layer.pt"))
             print("→ embeddings saved to", run_dir)
 
-           
-            
-            # 4) final digit classifier
             # 4) final digit classifier – supervised and unsupervised heads both see full (C,U,S) embedding,
-#       but labels Y=f(C) so supervised gradient only aligns with C
+            #    but labels Y=f(C) so supervised gradient only aligns with C
             np.random.shuffle(perm_all)
             lab2, unl2 = perm_all[:n_lab], perm_all[n_lab:]
             semi2 = train_digit_label.clone()
@@ -411,5 +420,3 @@ if __name__ == "__main__":
             torch.save(final_trainer, os.path.join(
                 run_dir, "final_trainer.pt"))
             print("→ final model & history saved to", run_dir)
-            # also test?
-

@@ -43,8 +43,8 @@ Fix-A-Shortcut/
 │       ├── experiment.py           # Experimental pipeline
 │       └── demo.py                 # Minimal reproduction script
 │
-├── Coloured_MNIST/                 # Real-world benchmark
-│   ├── coloured_mnist.py           # Colored MNIST dataset with shortcuts
+├── Positioned_MNIST/               # Real-world benchmark
+│   ├── positioned_mnist.py         # Positioned MNIST dataset with shortcuts
 │   ├── utils.py                    # Concept generation utilities
 │   └── lib/
 │       ├── models.py               # CNN architectures (ResNet, ConvNet)
@@ -91,15 +91,15 @@ for method, stats in results['stats'].items():
     print(f"{method}: conflicts detected = {stats.get('conflict_count', 0)}")
 ```
 
-### Colored MNIST Benchmark
+### Positioned MNIST Benchmark
 
 **Step 1: Download MNIST data automatically**
-MNIST data will be downloaded from [http://yann.lecun.com/exdb/mnist/](http://yann.lecun.com/exdb/mnist/) automatically to `./colored_mnist/` when you first run the script.
+MNIST data will be downloaded from [http://yann.lecun.com/exdb/mnist/](http://yann.lecun.com/exdb/mnist/) automatically to `./positioned_mnist/` when you first run the script.
 
-**Step 2: Generate colored dataset with shortcuts**
+**Step 2: Generate positioned dataset with shortcuts**
 ```bash
-cd Coloured_MNIST
-python coloured_mnist.py --shortcut_ratio 1.0 --lambda_unlab 0.8 --label_frac 0.05 --epochs 20 --methods fix_a_step_soft fix_a_step gradient_surgery naive
+cd Positioned_MNIST
+python positioned_mnist.py --shortcut_ratio 1.0 --lambda_unlab 0.8 --label_frac 0.05 --epochs 20 --methods fix_a_step_soft fix_a_step gradient_surgery naive
 ```
 
 **Available arguments:**
@@ -118,23 +118,23 @@ python coloured_mnist.py --shortcut_ratio 1.0 --lambda_unlab 0.8 --label_frac 0.
 
 This will:
 - Download MNIST automatically if not present
-- Generate colored versions where color correlates with digit labels
+- Generate positioned versions where digit position (top-left vs bottom-right) correlates with digit labels
 - Inject shortcuts into the training data
 - Train all specified methods and save results
-- Save processed data to `./data/colored_mnist/`
+- Save processed data to `./data/positioned_mnist/`
 
 **Step 3: Use the generated data in your experiments**
 ```python
 # The processed data files will be saved and can be loaded as:
 import torch
 
-base_dir = "./data/colored_mnist/λ0.8_sr1_lf0.05"  # Matches your experiment settings
+base_dir = "./data/positioned_mnist/λ0.8_sr1_lf0.05"  # Matches your experiment settings
 train_data = torch.load(f"{base_dir}/train_data.pt")
 train_digit_label = torch.load(f"{base_dir}/train_digit_label.pt") 
-train_color_label = torch.load(f"{base_dir}/train_color_label.pt")
+train_position_label = torch.load(f"{base_dir}/train_position_label.pt")
 test_data = torch.load(f"{base_dir}/test_data.pt")
 test_digit_label = torch.load(f"{base_dir}/test_digit_label.pt")
-test_color_label = torch.load(f"{base_dir}/test_color_label.pt")
+test_position_label = torch.load(f"{base_dir}/test_position_label.pt")
 ```
 
 ### MIMIC-CXR Benchmark

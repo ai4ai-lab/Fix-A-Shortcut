@@ -12,10 +12,9 @@ import torch.optim as optim
 
 
 #####################################
-# utils.py
+# utils.py 
 #####################################
 import torch
-
 
 def generate_concepts_batched(net_c, net_u, net_s, data, batch_size=64):
     """
@@ -30,14 +29,14 @@ def generate_concepts_batched(net_c, net_u, net_s, data, batch_size=64):
     # figure out which device the nets live on:
     device = next(net_c.parameters()).device
 
-    concepts_all = []
-    unknowns_all = []
+    concepts_all  = []
+    unknowns_all  = []
     shortcuts_all = []
 
     with torch.no_grad():
         for i in range(0, len(data), batch_size):
             # slice and move to GPU (or whatever device your model is on)
-            batch = data[i: i + batch_size].to(device)
+            batch = data[i : i + batch_size].to(device)
 
             # forward pass
             net_c(batch)
@@ -50,8 +49,8 @@ def generate_concepts_batched(net_c, net_u, net_s, data, batch_size=64):
             shortcuts_all.append(net_s.concepts)      # [b,50]
 
     # concatenate along batch dimension → [N,50] each
-    concepts_cat = torch.cat(concepts_all,  dim=0)
-    unknowns_cat = torch.cat(unknowns_all,  dim=0)
+    concepts_cat  = torch.cat(concepts_all,  dim=0)
+    unknowns_cat  = torch.cat(unknowns_all,  dim=0)
     shortcuts_cat = torch.cat(shortcuts_all, dim=0)
 
     return concepts_cat, unknowns_cat, shortcuts_cat
@@ -77,6 +76,7 @@ def generate_concepts(net_c, net_u, net_s, data):
         (net_c.concepts, net_u.concepts, net_s.concepts),
         dim=-1
     )
+
 
 
 #####################################
